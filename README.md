@@ -1,54 +1,43 @@
-# Hackenza-26
-A software only solution for underwater communication using smartphone flashlight for data transfer, a prototype aimed at reducing the bit error rate by encoding and decoding algorithms as suggested in the U-Flash research article. 
+# Hackenza-26: AquaComm (Underwater Smartphone OCC)
 
-Based on the provided code in MainActivity.kt, you are building an Android application that performs real-time Visible Light Communication (VLC) decoding using the device's camera.
-Specifically, you are using the camera sensor as a receiver to capture data encoded in light (likely from a flickering LED) and translating that light into text.
-Here is a breakdown of what the code is doing:
-1. High-Speed Camera Configuration
-•
-Manual Control: You are using Camera2Interop to bypass the camera's auto-exposure and auto-focus.
-•
-Fixed Exposure & ISO: You’ve set a very short exposure time (1ms) and high sensitivity (ISO 1600) to detect rapid changes in light intensity without motion blur or automatic brightness compensation.
-•
-60 FPS: You are requesting a constant 60 frames per second to maximize the "sampling rate" of the light signals.
-2. Signal Acquisition (Image Analysis)
-•
-YUV Strip Processing: Instead of looking at the whole image, the processYUVStrip function analyzes the Luminance (Y) channel (brightness) along a horizontal line in the middle of the frame.
-•
-Sub-frame Sampling: You are dividing the horizontal width into segments (steps of 10 pixels), averaging the brightness, and converting it to a bit stream (1 if bright, 0 if dark). This effectively uses the camera's rolling shutter or spatial scanning to capture high-frequency data.
-3. Bitstream Decoding & Synchronization
-•
-Self-Clocking Logic: The decodeBits function attempts to figure out the "clock" of the transmission. It looks at the first sequence of 1s and 0s to determine the baseLen (how many samples represent a single bit) and then normalizes the entire stream based on those lengths.
-•
-Transmission Splitting: Since signals might be sent multiple times, splitTransmissions looks for a specific "gap" pattern (111+ followed by several 0s) to separate different data packets.
-4. Data Extraction and Redundancy
-•
-Payload Extraction: It looks for a start sequence (either the first 8 bits or after a 1111 marker) to find where the actual message begins.
-•
-Redundancy Handling:
-◦
-If two transmissions are detected, bitsToTextRedundant compares them byte-by-byte.
-◦
-It uses a Hamming-distance-like approach (predictBestChar) to find the closest valid character from a VALID_CHARS set. If a bit is flipped due to noise, the code picks the character that requires the fewest bit changes to match.
-•
-Termination: It looks for a specific bit pattern (00001111) to signal the end of a text string.
-5. User Interaction & Feedback
-•
-Touch-to-Record: The process starts when the user touches the screen (ACTION_DOWN) and stops when they release (ACTION_UP).
-•
-Simultaneous Video: While analyzing the light bits, it also triggers a standard VideoCapture to save the recording to the gallery.
-•
-Real-time Results: The final decoded text, the raw bit string, and the total bit count are displayed in a resultsTextView.
-Summary of the Flow:
-1.
-Light Source flickers binary data.
-2.
-Camera captures frames at high speed with fixed exposure.
-3.
-Analyzer converts brightness levels into a raw string of "1"s and "0"s.
-4.
-Decoder cleans up the timing and extracts the intended binary payload.
-5.
-Error Correction logic compares multiple captures to find the most likely intended characters.
-6.
-UI displays the resulting text message
+## The Problem
+Underwater optical camera communication (OCC) using smartphones faces severe limitations. Ambient sunlight interference, water turbulence, and hardware constraints cause massive inter-symbol interference and frame decoding errors. 
+
+## Our Solution & Core Logic
+We built a software-only prototype for underwater data transfer using a smartphone flashlight and camera, heavily inspired by the U-Flash research article. To bypass low hardware strobe frequencies, we exploit the CMOS camera's **Rolling Shutter effect** to capture high-speed light pulses as spatial bright and dark stripes.
+
+
+### Camera & Hardware Optimization
+To maximize contrast and isolate the region of interest (RoI) underwater, we locked the receiver camera parameters to:
+* **Frame Rate:** 60 FPS
+* **Shutter Speed:** 1/1000s 
+* **ISO:** 1600
+
+### Signal Processing Pipeline
+1. **YUV Strip Processing:** Instead of processing heavy RGB frames, we extract only the Luminance (Y) channel from the YUV format for blisteringly fast processing.
+2. **Camera Caching & Subframe Sampling:** We utilize memory caching and subframe sampling to process the rolling shutter stripes in real-time without dropping frames.
+3. **Dynamic Thresholding:** The app dynamically calculates local signal mean/variance to adjust the decision threshold for bright (1) and dark (0) stripes, adapting to changing underwater ambient light.
+
+### Error Correction (Current Implementation)
+* **Dual Transmission & Hamming Distance:** To combat bit errors without complex encoding overhead, the transmitter sends the bit sequence twice. The receiver compares the received sequences and resolves errors using the least Hamming distance.
+
+## Current Project Status
+* **Accuracy:** The prototype currently successfully reads transmitted bytes with **~50% accuracy** in real-time.
+* **Working Features:** Real-time YUV luminance extraction, dynamic thresholding, and rolling shutter stripe decoding.
+
+## Future Roadmap (To-Do)
+To reach 100% accuracy, we are architecting the following advanced encoding layers:
+* **Line Coding:** Implementing Manchester or Run-Length Limited (RLL) encoding to prevent long strobe bursts and camera blinding.
+* **Forward Error Correction:** Integrating the `ZXing` Reed-Solomon encoder to provide byte-level armor against massive burst errors caused by water splashes.
+* **Interleaving:** Adding a block interleaver matrix to scatter burst errors into single-bit errors.
+
+## How to Set Up and Run
+1. Clone this repository.
+2. Open the project in Android Studio.
+3. Build and install the APK on two Android devices.
+4. Set the receiving device camera to Pro/Manual mode (if supported) to lock 60fps and 1/1000s shutter speed. 
+5. Align the transmitter's flashlight with the receiver's camera and initiate transfer.
+
+## Demo Video
+[**Link to Google Drive Demo Video Here**] 
+*(Note: Ensure this is set to 'Anyone with the link can view')*
